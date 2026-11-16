@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HELIOSTAT — Solar-Farm Tactical FPS</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1a140d; font-family: 'Segoe UI', Arial, sans-serif; }
+  #game { position: fixed; inset: 0; }
+  #game canvas { display: block; width: 100%; height: 100%; }
+  #hud { position: fixed; inset: 0; pointer-events: none; color: #fff; z-index: 5; }
+  .panel { background: rgba(18, 15, 10, 0.62); border: 1px solid rgba(255, 200, 120, 0.35); border-radius: 6px; padding: 6px 8px; }
+  #minimap { position: absolute; top: 12px; left: 12px; width: 184px; }
+  #minimap canvas { display: block; width: 168px; height: 132px; }
+  #locname { font-size: 11px; letter-spacing: 2px; color: #ffd27e; margin-top: 4px; font-weight: bold; }
+  #topbar { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; min-width: 340px; }
+  #scores { font-size: 20px; font-weight: bold; letter-spacing: 1px; }
+  #scores .helios { color: #ffc21a; }
+  #scores .umbra { color: #8fb4ff; }
+  #timer { font-size: 26px; font-weight: bold; }
+  #round { font-size: 11px; letter-spacing: 2px; color: #ffd27e; }
+  #plan { font-size: 11px; letter-spacing: 1px; color: #cfe3ff; margin-top: 2px; }
+  #feed { position: absolute; top: 12px; right: 12px; width: 250px; font-size: 12px; line-height: 1.5; text-align: right; }
+  #radio { position: absolute; top: 170px; left: 12px; width: 250px; font-size: 12px; line-height: 1.6; color: #ffe9b0; }
+  #vitals { position: absolute; left: 12px; bottom: 12px; font-size: 20px; font-weight: bold; }
+  #vitals .lbl { font-size: 10px; letter-spacing: 1px; color: #d8c8a8; font-weight: normal; }
+  #vitals div { margin: 2px 0; }
+  #weapons { position: absolute; right: 12px; bottom: 12px; text-align: right; min-width: 260px; }
+  #weapons .wname { font-size: 15px; font-weight: bold; color: #ffd27e; }
+  #ammo { font-size: 30px; font-weight: bold; }
+  #ammo .res { font-size: 16px; color: #cbb; }
+  #ammo .rel { font-size: 12px; color: #ff9a5a; }
+  #slots { font-size: 11px; color: #d8c8a8; margin-top: 2px; }
+  #slots .cur { color: #fff; font-weight: bold; }
+  #slots .no { opacity: 0.45; }
+  #cell { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); width: 280px; text-align: center; }
+  #cell.ready { border-color: #ffc21a; box-shadow: 0 0 14px rgba(255, 194, 26, 0.55); animation: pulse 0.9s infinite alternate; }
+  @keyframes pulse { from { box-shadow: 0 0 6px rgba(255,194,26,0.3); } to { box-shadow: 0 0 18px rgba(255,194,26,0.8); } }
+  #cellicon { font-size: 18px; display: inline-block; }
+  #cellbar { height: 10px; background: rgba(255,255,255,0.15); border-radius: 5px; overflow: hidden; margin: 4px 0; }
+  #cellfill { height: 100%; width: 0%; background: linear-gradient(90deg, #ff8c1a, #ffc21a, #fff2c0); }
+  #celllabel { font-size: 11px; letter-spacing: 1px; font-weight: bold; }
+  #glare { font-size: 11px; color: #ffe9b0; margin-top: 2px; }
+  #crosshair { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+  .ch-arm { position: absolute; left: 0; top: 0; width: 2px; height: 9px; background: #fff; box-shadow: 0 0 3px #000; }
+  .ch-arm:nth-child(3), .ch-arm:nth-child(4) { width: 9px; height: 2px; }
+  #ch-dot { position: absolute; left: -1px; top: -1px; width: 2px; height: 2px; background: #fff; }
+  #hitmark { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 26px; font-weight: bold; opacity: 0; text-shadow: 0 0 4px #000; margin-top: -34px; }
+  #vignette { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, transparent 55%, rgba(255, 30, 10, 0.55) 100%); }
+  #glarewash { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at 18% 42%, rgba(255, 220, 140, 0.85), rgba(255, 170, 60, 0.25) 55%, transparent 75%); }
+  #banner { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); font-size: 34px; font-weight: bold; letter-spacing: 3px; text-shadow: 0 2px 10px #000; opacity: 0; transition: opacity 0.2s; text-align: center; white-space: nowrap; }
+  #banner.show { opacity: 1; }
+  #banner.win { color: #ffc21a; }
+  #banner.lose { color: #ff5a3c; }
+  #banner.plant { color: #ff8c1a; }
+  #banner.sun { color: #fff2c0; }
+  #banner.buy { color: #cfe3ff; }
+  #banner.live { color: #fff; }
+  #buy { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); text-align: center; font-size: 13px; line-height: 1.7; display: none; }
+  #buy .dim { color: #cbb; font-size: 11px; }
+  #prompt { position: absolute; left: 50%; top: 62%; transform: translateX(-50%); font-size: 15px; font-weight: bold; letter-spacing: 1px; color: #ffd27e; text-shadow: 0 1px 4px #000; display: none; text-align: center; }
+  #plantbar { position: absolute; left: 50%; top: 66%; transform: translateX(-50%); width: 220px; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; overflow: hidden; display: none; }
+  #plantfill { height: 100%; width: 0%; background: #ff8c1a; }
+  #start { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; background: rgba(10, 8, 5, 0.55); z-index: 10; pointer-events: auto; cursor: pointer; }
+  #start h1 { color: #ffc21a; font-size: 54px; letter-spacing: 10px; margin: 0; text-shadow: 0 3px 18px #000; }
+  #start p { color: #ffe9b0; font-size: 15px; max-width: 560px; text-align: center; line-height: 1.6; }
+  #start .keys { color: #fff; font-size: 13px; }
+  #start .tip { color: #ffd27e; font-size: 12px; letter-spacing: 1px; }
+  #staging { display: none; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="game"></div>
+<div id="glarewash"></div>
+<div id="hud"></div>
+<div id="start">
+  <h1>HELIOSTAT</h1>
+  <p>Golden-hour solar-farm tactical FPS. HELIOS attacks, UMBRA defends.
+  Sunlight charges your CELL — at 100, press F for a SUNSHOT golden bolt.
+  Plant the charge at ARRAY or TOWER. First to 7 rounds wins.</p>
+  <p class="keys">WASD move · Mouse aim · Click shoot · Right-click ADS · R reload · E plant · F SUNSHOT · G frag · Q smoke · B buy · Shift sprint · Ctrl crouch</p>
+  <p><b>CLICK TO PLAY</b></p>
+</div>
+<script type="module" src="./src/main.js"></script>
+<script>
+  document.getElementById('start').addEventListener('click', function () {
+    this.style.display = 'none';
+  });
+  // Staging mode hides the start screen so screenshots are pure gameplay.
+  if (new URLSearchParams(location.search).get('shot')) {
+    document.getElementById('start').style.display = 'none';
+  }
+</script>
+</body>
+</html>
